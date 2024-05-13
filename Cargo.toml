@@ -1,0 +1,42 @@
+[package]
+name = "unirtc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = "1.0.201"
+shadow-clone = "1.2.1"
+thiserror = "1.0.60"
+tracing = "0.1.40"
+uuid = { version = "1.8.0", features = ["v4", "js"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+maybe-sync = "0.1.1"
+js-sys = "0.3.66"
+wasm-bindgen-futures = "0.4.39"
+wasm-bindgen = "0.2.89"
+web-sys = { version = "0.3.66", features = [
+    "RtcConfiguration",
+    "RtcDataChannel",
+    "RtcDataChannelInit",
+    "RtcDataChannelState",
+    "RtcDataChannelType",
+    "RtcIceCandidate",
+    "RtcIceCandidateInit",
+    "RtcIceTransportPolicy",
+    "RtcPeerConnection",
+    "RtcPeerConnectionState",
+    "RtcSdpType",
+    "RtcSessionDescription",
+    "RtcSessionDescriptionInit",
+    "RtcStatsReport",
+    "TextEncoder"
+] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+maybe-sync = { version = "0.1.1", features = ["sync"] }
+webrtc = { version = "0.11.0", features = ["pem"] }
+
+[dev-dependencies]
+tokasm.path = "../tokasm"
+unilog.git = "https://github.com/jabuwu/unilog"
