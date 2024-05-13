@@ -11,6 +11,7 @@ use std::sync::Arc;
 #[cfg(not(target_arch = "wasm32"))]
 mod native {
     pub use webrtc::{
+        api::API,
         data_channel::{data_channel_init::RTCDataChannelInit, RTCDataChannel},
         ice::candidate::{CandidatePairState, CandidateType},
         ice_transport::{
@@ -64,26 +65,6 @@ pub type OnDataChannelFn = Box<
         (Fn(DataChannel) -> Pin<Box<dyn_maybe_send!(Future<Output = ()> + 'static)>>)
     ),
 >;
-
-#[cfg(not(target_arch = "wasm32"))]
-async fn api<'a>() -> webrtc::api::API {
-    use webrtc::{
-        api::{
-            interceptor_registry::register_default_interceptors, media_engine::MediaEngine,
-            APIBuilder,
-        },
-        interceptor::registry::Registry,
-    };
-
-    let mut media_engine = MediaEngine::default();
-    media_engine.register_default_codecs().unwrap();
-    let mut registry = Registry::new();
-    registry = register_default_interceptors(registry, &mut media_engine).unwrap();
-    let api = APIBuilder::new()
-        .with_media_engine(media_engine)
-        .with_interceptor_registry(registry);
-    api.build()
-}
 
 #[derive(Debug, Default, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -589,7 +570,21 @@ impl PeerConnection {
     pub async fn new(configuration: &Configuration) -> Result<Self, Error> {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let api = api().await;
+            use webrtc::{
+                api::{
+                    interceptor_registry::register_default_interceptors, media_engine::MediaEngine,
+                    APIBuilder,
+                },
+                interceptor::registry::Registry,
+            };
+            let mut media_engine = MediaEngine::default();
+            media_engine.register_default_codecs().unwrap();
+            let mut registry = Registry::new();
+            registry = register_default_interceptors(registry, &mut media_engine).unwrap();
+            let api = APIBuilder::new()
+                .with_media_engine(media_engine)
+                .with_interceptor_registry(registry);
+            let api = api.build();
             let configuration = native::RTCConfiguration::from(configuration.clone());
             let peer = api
                 .new_peer_connection(configuration)
@@ -605,6 +600,16 @@ impl PeerConnection {
                     .map_err(|_| Error::FailedToCreatePeer)?,
             ))
         }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn new_with_api(configuration: &Configuration, api: native::API) -> Result<Self, Error> {
+        let configuration = native::RTCConfiguration::from(configuration.clone());
+        let peer = api
+            .new_peer_connection(configuration)
+            .await
+            .map_err(|_| Error::FailedToCreatePeer)?;
+        Ok(PeerConnection(peer))
     }
 
     pub async fn create_offer(&self) -> Result<SessionDescription, Error> {
